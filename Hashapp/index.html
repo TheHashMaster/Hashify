@@ -1,1 +1,235 @@
 
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+ <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+
+ <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.11/lottie.min.js"></script>
+ <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+ <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+ <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+ <script src="https://cdn.jsdelivr.net/npm/web3@1.7.3/dist/web3.min.js"></script>
+
+ <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.7.3/web3.min.js"></script>
+ <script src="https://cdn.jsdelivr.net/npm/web3@1.6.1/dist/web3.min.js"></script>
+ <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+ <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<div class="top-nav">
+<img id="selectedAvatar" src="default-avatar.png" alt="Selected Avatar">
+
+
+    <div class="profile-container">
+<div class="label2">
+    <div class="profile-name" id="userAddress">Not Connected</div>
+    <button id="connectWalletBtn" class="buttons">Connect</button>
+     <p id="hCashBalance"> Not Connected</p></div> </div>
+                                                  
+<div class="profile-container"><div class="label2">
+<div id="userLevel">Level: Not Connected</div> 
+<button class="buttons" id="levelUpButton">Level Up</button>
+                                          <div id="expBalance">EXP: Not Connected </div></div> </div>
+ 
+
+
+    </div>
+
+
+   </div>
+ <div class="top-nav">
+ 
+  <div class="icon-container">
+   <div class="icon-box yellow" onclick="iconClick('HashEx')">
+    <div class="icon-circle">
+     <i class="fa fa-cogs"></i>
+    </div>
+    <span>HashEx</span>
+   </div>  <div class="icon-container">
+   <div class="icon-box yellow" onclick="iconClick('Mining')">
+    <div class="icon-circle">
+     <i class="fa fa-cogs"></i>
+    </div>
+    <span>Mining</span>
+   </div>
+   <div class="icon-box yellow" onclick="iconClick('Staking')">
+    <div class="icon-circle">
+     <i class="fa fa-umbrella"></i>
+    </div>
+    <span>Staking</span>
+   </div>
+   <div class="icon-box yellow" onclick="iconClick('Farming')">
+    <div class="icon-circle">
+     <i class="fa fa-leaf"></i>
+
+    </div>
+    <span>Farming</span>
+   </div>
+   <div class="icon-box red" onclick="iconClick('Faucet')">
+    <div class="icon-circle">
+     <i class="fa fa-tint"></i>
+    </div>
+    <span>Faucet</span>
+   </div>
+
+   <div class="icon-box green" onclick="iconClick('Bounties')">
+    <div class="icon-circle">
+     <i class="fa fa-users"></i>
+    </div>
+    <span>Bounties</span>
+   </div>
+   <div class="icon-box green" onclick="iconClick('Quests')">
+    <div class="icon-circle">
+     <i class="fa fa-trophy"></i>
+    </div>
+    <span>Quests</span>
+   </div>
+   <div class="icon-box green" onclick="iconClick('Airdrops')">
+    <div class="icon-circle">
+     <i class="fa fa-gift"></i>
+    </div>
+    <span>Airdrops</span>
+   </div>
+   </div></div>  </div></div>
+  </div></div>status --><p id="status"></p><div>
+   
+<div class="footer-nav">
+<div class="icon-box red" onclick="iconClick('Home')">
+
+  <i class="fas fa-home"></i>
+
+  <span>Home</span>
+ </div>
+<div class="icon-box red" onclick="iconClick('Factory')">
+
+  <i class="fas fa-industry"></i>
+
+  <span>Factory</span>
+ </div>
+<div class="icon-box green" onclick="iconClick('Academy')">
+
+  <i class="fas fa-book"></i>
+
+  <span>Academy</span>
+ </div>
+<div class="icon-box green" onclick="iconClick('Arcade')">
+
+  <i class="fas fa-gamepad"></i>
+
+  <span>Arcade</span>
+ </div>
+<div class="icon-box green" onclick="iconClick('Links')">
+
+  <i class="fas fa-wallet"></i>
+
+  <span>Links</span>
+ </div></div>
+<div id=modals>
+<div id="airdropsModal" class="modal" >
+   <div class="modal-content">
+
+   
+    <div id="userAddress"></div>
+    GasDrop From The Team<br><br>
+    <button id="claimAirdropBtn" >Claim Airdrop</button>
+    <p id="status"></p>
+
+
+   </div>
+  </div>
+<div id="faucetModal" class="modal">
+  <div class="modal-content">
+    <h2>Faucet</h2>
+<br>
+  <div id="balance"></div>
+      <div id="countdownTimer">You may withdraw once every 30 minutes</div>
+      <button class="buttons" id="withdrawBtn">Withdraw</button>
+    </div>
+  </div>
+<div id="linksModal" class="modal" >
+   <div class="modal-content">
+    <h2>Links</h2>
+<div class="console-links-container">
+<h1 class="icon-link">
+<i class="fas fa-globe"></i> Hashify Blockchain
+</h1> 
+<a href="https://hashify.online" target="_blank" class="icon-link">
+<br> <i class="fas fa-globe"></i> Website<br></a>
+<a href="https://x.com/GetHashify" target="_blank" class="icon-link">
+<br> <i class="fab fa-twitter"></i>Twitter<br>
+        </a>
+<a href="https://discord.gg/earrBHUc" target="_blank" class="icon-link">
+<br> <i class="fab fa-telegram-plane"></i>Discord<br>
+        </a>
+<a href="https://thehashmaster.github.io/HashWorld/" target="_blank" class="icon-link">
+<br> <i class="fas fa-globe"></i> Telegram<br>
+        </a>
+<a href="https://thehashmaster.github.io/HashWorld/" target="_blank" class="icon-link">
+<br> <i class="fab fa-github"></i> Github<br>
+        </a>
+<a href="https://thehashmaster.github.io/HashWorld/" target="_blank" class="icon-link">
+<br> <i class="fab fa-bitcoin"></i> Whitepaper<br>
+        </a>
+<a href="https://thehashmaster.github.io/HashWorld/" target="_blank" class="icon-link">
+<br> <i class="fas fa-calendar"></i> Roadmap<br>
+        </a>
+<a href="https://thehashmaster.github.io/HashWorld/" target="_blank" class="icon-link">
+<br> <i class="fas fa-gamepad"></i> Settings </a>
+</div>
+   </div>
+ </div></div>
+<div id="startScreen">
+<div class="user-screen" id="newUserScreen">
+  <div id="avatar-generator" class="avatar-generator-container">
+  <div class="label2">    <center>
+      <div> What shall we call you?</div><input type="text" id="nameInput" placeholder=" Enter your username" style="background-color: #333; color: #fff;" />
+     </center> </div> 
+     <div class="avatar-ring">
+
+      <div class="avatar-controls">
+
+       <center> Selected Avatar <img alt="thumbnails" id="avatarImg"></center>
+       <select id="avatarStyle">
+        <option value="avataaars">Avataaars</option>
+        <option value="bottts">Bottts</option>
+        <option value="fun-emoji">Fun Emoji</option>
+        <option value="pixel-art">Pixel Art</option>
+       </select></div>
+       <center> <button id="generateBtn" class="buttons">Generate Avatar</button></center>
+
+       <div></div>
+       <center>
+        <div id="savedAvatars" class="thumbnails"></div>
+       </center>
+       <center> Click a thumbnail to select an Avatar</center>
+      </div>
+
+      <center> <button id="createProfileBtn" class="buttons">Login</button></center>
+      <center> <button class="back" onclick="goBack()">Back to Start</button> </center>
+   
+
+   
+ </div></div>
+<div id="returningUserScreen" class="user-screen">
+<center><br>  <h2>Welcome Back!</h2><br>
+    <p>Click below to load your profile:</p><br>
+    <button onclick="loadProfile()">Load Profile</button>
+    <br>
+    <p id="profileDetails"></p>
+    <br>
+    <button class="back" onclick="goBack()">Back to Start</button>
+   </div></center>
+<div id="guestModeScreen" class="user-screen">
+<center><br>  <h2>Guest Mode</h2><br>
+<p>Welcome to Guest Mode! You can proceed without creating or loading a profile.</p>
+<br>
+<button onclick="showAppContent()">Enter</button><br> <br><button class="back" onclick="goBack()">Back to Start</button>
+</center>
+
+ </div></div>  
+<div id="butcon1" class="user-screenbut">
+  <div id="butcon"> <button id="newUserBtn">New User</button>
+   <button id="returningUserBtn">Returning User</button>
+   <button id="guestModeBtn">Guest Mode</button>
+  </div>
+   
+
+
