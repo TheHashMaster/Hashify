@@ -1,0 +1,542 @@
+const Web3 = require('web3');
+const express = require('express');
+const app = express();
+const port = 3000;
+
+const web3 = new Web3('http://145.223.103.175:8779');
+let latestBlockNumber = 0;
+let transactions = new Map(); // Store transactions to prevent duplicates
+let blocks = new Map(); // Store blocks
+let contracts = new Map(); // Store contract creations
+let tokens = new Map(); // Store token creations
+let miningData = []; // Store mining data
+let minerShares = []; // Store last 1,000,000 shares
+let totalShareDifficulty = 0; // Sum of all share difficulties
+let minerHashrates = new Map(); // Store hashrates per miner
+let addressTransactions = new Map(); // Map of addresses to their transactions
+const Web3 = require('web3');
+const express = require('express');
+const app = express();
+const port = 3000;
+
+const web3 = new Web3('http://145.223.103.175:8779');
+let latestBlockNumber = 0;
+let transactions = new Map();
+let blocks = new Map();
+let contracts = new Map();
+let tokens = new Map();
+let miningData = [];
+let minerShares = [];
+let totalShareDifficulty = 0;
+let minerHashrates = new Map();
+let addressTransactions = new Map();
+
+app.use(express.json());
+
+// Deep scan on startup
+async function deepScan() {
+    console.log('Starting deep scan...');
+    try {
+        const latestBlock = await web3.eth.getBlockNumber();
+        for (let i = 0; i <= latestBlock; i++) {
+            if (!blocks.has(i)) {
+                const block = await web3.eth.getBlock(i, true);
+                if (block) {
+                    blocks.set(block.number, block);
+                    logTransactions(block.transactions);
+                    logMiningData(block);
+                }
+            }
+        }
+        console.log('Deep scan completed.');
+    } catch (error) {
+        console.error('Error during deep scan:', error);
+    }
+}
+
+// Fetch latest block every 5 seconds
+async function fetchLatestBlock() {
+    try {
+        const block = await web3.eth.getBlock('latest', true);
+        if (block && block.number > latestBlockNumber) {
+            latestBlockNumber = block.number;
+            blocks.set(block.number, block);
+            console.log(`New Block: ${block.number}`);
+            logTransactions(block.transactions);
+            logMiningData(block);
+        }
+    } catch (error) {
+        console.error('Error fetching latest block:', error);
+    }
+}
+
+// Log transactions
+function logTransactions(txns) {
+    txns.forEach(async (txn) => {
+        if (!transactions.has(txn.hash)) {
+            transactions.set(txn.hash, txn);
+            const receipt = await web3.eth.getTransactionReceipt(txn.hash);
+            const confirmed = receipt && receipt.blockNumber ? 'Confirmed' : 'Unconfirmed';
+            
+            if (receipt && receipt.contractAddress) {
+                contracts.set(receipt.contractAddress, txn);
+                console.log(`Contract Created: ${receipt.contractAddress}`);
+            }
+            
+            if (txn.to === null && receipt && receipt.logs.length > 0) {
+                tokens.set(txn.hash, txn);
+                console.log(`Token Creation Detected in TX: ${txn.hash}`);
+            }
+            
+            linkTransactionToAddresses(txn);
+            
+            console.log({
+                hash: txn.hash,
+                from: txn.from,
+                to: txn.to,
+                amount: web3.utils.fromWei(txn.value, 'ether'),
+                gasUsed: receipt ? receipt.gasUsed : 'Pending',
+                gasPrice: txn.gasPrice,
+                cost: receipt ? web3.utils.fromWei((txn.gasPrice * receipt.gasUsed).toString(), 'ether') : 'Pending',
+                data: txn.input,
+                timestamp: new Date().toISOString(),
+                confirmations: receipt ? latestBlockNumber - receipt.blockNumber : 0,
+                status: confirmed
+            });
+        }
+    });
+}
+
+// Log mining data
+function logMiningData(block) {
+    const data = {
+        blockNumber: block.number,
+        difficulty: block.difficulty,
+        totalDifficulty: block.totalDifficulty,
+        gasLimit: block.gasLimit,
+        gasUsed: block.gasUsed,
+        miner: block.miner,
+        timestamp: block.timestamp
+    };
+    miningData.push(data);
+    console.log('Mining Data:', data);
+    
+    logMinerShares(block);
+    logMinerHashrate(block);
+}
+
+// Fetch pending transactions
+app.get('/pending-transactions', (req, res) => {
+    res.json({
+        pendingTransactions: Array.from(transactions.values()).filter(txn => txn.blockNumber === null)
+    });
+});
+
+// Fetch gas price
+app.get('/gas-price', async (req, res) => {
+    const gasPrice = await web3.eth.getGasPrice();
+    res.json({
+        gasPrice: gasPrice,
+        gasPriceInEther: web3.utils.fromWei(gasPrice, 'ether')
+    });
+});
+
+// Fetch contract transactions
+app.get('/contracts/:contractAddress/transactions', (req, res) => {
+    const { contractAddress } = req.params;
+    const contractTransactions = Array.from(transactions.values()).filter(txn => txn.to === contractAddress);
+    res.json({ contractAddress, transactions: contractTransactions });
+});
+
+// Fetch contract calls
+app.get('/contracts/:contractAddress/calls', (req, res) => {
+    const { contractAddress } = req.params;
+    const contractCalls = Array.from(transactions.values()).filter(txn => txn.to === contractAddress && txn.input !== '0x');
+    res.json({ contractAddress, calls: contractCalls.map(txn => ({
+        txHash: txn.hash,
+        method: txn.input.slice(0, 10), // Simplified method extraction
+        args: txn.input.slice(10) // Simplified argument extraction
+    })) });
+});
+
+// Fetch token transfers
+app.get('/tokens/:tokenAddress/transfers', (req, res) => {
+    const { tokenAddress } = req.params;
+    const tokenTransfers = Array.from(transactions.values()).filter(txn => txn.to === tokenAddress);
+    res.json({
+        totalTransfers: tokenTransfers.length,
+        transfers: tokenTransfers.map(txn => ({
+            from: txn.from,
+            to: txn.to,
+            value: web3.utils.fromWei(txn.value, 'ether'),
+            timestamp: new Date(txn.timestamp * 1000).toISOString()
+        }))
+    });
+});
+
+// Fetch token balance for address
+app.get('/tokens/:tokenAddress/balance/:address', async (req, res) => {
+    const { tokenAddress, address } = req.params;
+    // Placeholder for actual token balance query
+    const balance = await web3.eth.getBalance(address); // Use token contract method for actual balance
+    res.json({
+        address,
+        balance: balance,
+        balanceInEther: web3.utils.fromWei(balance, 'ether')
+    });
+});
+
+// Fetch block rewards
+app.get('/block-rewards', (req, res) => {
+    res.json({
+        totalRewards: 10000,
+        blockRewards: miningData.map(data => ({
+            blockNumber: data.blockNumber,
+            miner: data.miner,
+            reward: data.gasUsed, // Placeholder for actual reward calculation
+            timestamp: new Date(data.timestamp * 1000).toISOString()
+        }))
+    });
+});
+
+// Fetch network stats
+app.get('/network-stats', (req, res) => {
+    // Placeholder for network stats
+    res.json({
+        activeNodes: 100,
+        averageBlockTime: "12",
+        hashRate: "1000000000000",
+        networkDifficulty: "5000"
+    });
+});
+
+// Fetch wallet balance
+app.get('/wallet/:address/balance', async (req, res) => {
+    const { address } = req.params;
+    const balance = await web3.eth.getBalance(address);
+    res.json({
+        address,
+        balance: web3.utils.fromWei(balance, 'ether'),
+        balanceInEther: web3.utils.fromWei(balance, 'ether')
+    });
+});
+
+// Fetch events
+app.get('/events', (req, res) => {
+    const events = [
+        { type: "contractCreated", address: "0xabc123...", txHash: "0x123abc...", timestamp: new Date().toISOString() }
+    ];
+    res.json({ totalEvents: events.length, events });
+});
+
+// Fetch health
+app.get('/health', (req, res) => {
+    res.json({
+        status: "ok",
+        blockchainNode: "connected",
+        lastSync: new Date().toISOString()
+    });
+});
+
+// Start API server
+app.listen(port, () => {
+    console.log(`Blockchain explorer backend running on port ${port}`);
+});
+
+// Start deep scan and fetch latest block
+deepScan();
+setInterval(fetchLatestBlock, 5000);
+app.use(express.json());
+
+async function deepScan() {
+    console.log('Starting deep scan...');
+    try {
+        const latestBlock = await web3.eth.getBlockNumber();
+        for (let i = 0; i <= latestBlock; i++) {
+            if (!blocks.has(i)) {
+                const block = await web3.eth.getBlock(i, true);
+                if (block) {
+                    blocks.set(block.number, block);
+                    logTransactions(block.transactions);
+                    logMiningData(block);
+                }
+            }
+        }
+        console.log('Deep scan completed.');
+    } catch (error) {
+        console.error('Error during deep scan:', error);
+    }
+}
+
+deepScan(); // Run deep scan on startup
+
+async function fetchLatestBlock() {
+    try {
+        const block = await web3.eth.getBlock('latest', true);
+        if (block && block.number > latestBlockNumber) {
+            latestBlockNumber = block.number;
+            blocks.set(block.number, block);
+            console.log(New Block: ${block.number});
+            console.log(block);
+            logTransactions(block.transactions);
+            logMiningData(block);
+        }
+    } catch (error) {
+        console.error('Error fetching latest block:', error);
+    }
+}
+
+async function logTransactions(txns) {
+    const txnPromises = txns.map(async (txn) => {
+        if (!transactions.has(txn.hash)) {
+            transactions.set(txn.hash, txn);
+            let receipt;
+            let retries = 5;
+            let delay = 1000; // 1 second delay between retries
+
+            while (retries > 0) {
+                try {
+                    receipt = await web3.eth.getTransactionReceipt(txn.hash);
+                    if (receipt) break; // Exit loop once receipt is found
+                } catch (error) {
+                    console.error(`Error getting receipt for txn ${txn.hash}: ${error.message}`);
+                }
+
+                await new Promise(resolve => setTimeout(resolve, delay)); // Delay before retry
+                retries--;
+            }
+
+            if (!receipt) {
+                console.log(`Transaction ${txn.hash} still not mined after retries.`);
+                return;
+            }
+
+            const confirmed = receipt && receipt.blockNumber ? 'Confirmed' : 'Unconfirmed';
+            
+            if (receipt && receipt.contractAddress) {
+                contracts.set(receipt.contractAddress, txn);
+                console.log(`Contract Created: ${receipt.contractAddress}`);
+            }
+            
+            if (txn.to === null && receipt && receipt.logs.length > 0) {
+                tokens.set(txn.hash, txn);
+                console.log(`Token Creation Detected in TX: ${txn.hash}`);
+            }
+            
+            linkTransactionToAddresses(txn);
+        }
+    });
+
+    await Promise.all(txnPromises);
+}
+
+function logMiningData(block) {
+    const data = {
+        blockNumber: block.number,
+        difficulty: block.difficulty,
+        totalDifficulty: block.totalDifficulty,
+        gasLimit: block.gasLimit,
+        gasUsed: block.gasUsed,
+        miner: block.miner,
+        timestamp: block.timestamp
+    };
+    miningData.push(data);
+    console.log('Mining Data:', data);
+    
+    logMinerShares(block);
+    logMinerHashrate(block);
+}
+
+setInterval(fetchLatestBlock, 5000);
+
+// Blocks API Route
+app.get('/api/blocks', (req, res) => {
+    const { page = 1, limit = 10 } = req.query;  // Default to page 1 and limit 10
+    const blocksArray = Array.from(blocks.values());
+    const paginatedBlocks = blocksArray.slice((page - 1) * limit, page * limit);
+    res.json({
+        totalBlocks: blocksArray.length,
+        page,
+        totalPages: Math.ceil(blocksArray.length / limit),
+        blocks: paginatedBlocks
+    });
+});
+
+// Single Block by Number API Route
+app.get('/api/blocks/:blockNumber', (req, res) => {
+    const blockNumber = parseInt(req.params.blockNumber);
+    const block = blocks.get(blockNumber);
+    if (block) {
+        res.json(block);
+    } else {
+        res.status(404).json({ error: 'Block not found' });
+    }
+});
+
+// Transactions API Route
+app.get('/api/transactions', (req, res) => {
+    const { page = 1, limit = 10, status } = req.query;  // Optional filter for status
+    let txnArray = Array.from(transactions.values());
+    if (status) {
+        txnArray = txnArray.filter(txn => txn.status === status);
+    }
+    const paginatedTxns = txnArray.slice((page - 1) * limit, page * limit);
+    res.json({
+        totalTransactions: txnArray.length,
+        page,
+        totalPages: Math.ceil(txnArray.length / limit),
+        transactions: paginatedTxns
+    });
+});
+
+// Single Transaction by Hash API Route
+app.get('/api/transactions/:txnHash', (req, res) => {
+    const txnHash = req.params.txnHash;
+    const txn = transactions.get(txnHash);
+    if (txn) {
+        res.json(txn);
+    } else {
+        res.status(404).json({ error: 'Transaction not found' });
+    }
+});
+
+// Mining Data API Route
+app.get('/api/mining-data', (req, res) => {
+    const { page = 1, limit = 10 } = req.query;
+    const miningDataArray = Array.from(miningData);
+    const paginatedMiningData = miningDataArray.slice((page - 1) * limit, page * limit);
+    res.json({
+        totalMiningData: miningDataArray.length,
+        page,
+        totalPages: Math.ceil(miningDataArray.length / limit),
+        miningData: paginatedMiningData
+    });
+});
+
+// Miner Hashrates API Route
+app.get('/api/miner-hashrates', (req, res) => {
+    const minerHashratesArray = Array.from(minerHashrates.entries());
+    res.json({
+        totalMinerHashrates: minerHashratesArray.length,
+        minerHashrates: minerHashratesArray
+    });
+});
+
+// Total Shares API Route
+app.get('/api/miner-shares', (req, res) => {
+    const { page = 1, limit = 10 } = req.query;
+    const minerSharesArray = minerShares.slice(0, 100);  // Get the last 100 shares
+    const paginatedMinerShares = minerSharesArray.slice((page - 1) * limit, page * limit);
+    res.json({
+        totalShares: minerSharesArray.length,
+        page,
+        totalPages: Math.ceil(minerSharesArray.length / limit),
+        shares: paginatedMinerShares
+    });
+});
+
+// Tokens API Route
+app.get('/api/tokens', (req, res) => {
+    const tokenArray = Array.from(tokens.values());
+    res.json({
+        totalTokens: tokenArray.length,
+        tokens: tokenArray
+    });
+});
+
+// Contracts API Route
+app.get('/api/contracts', (req, res) => {
+    const contractsArray = Array.from(contracts.values());
+    res.json({
+        totalContracts: contractsArray.length,
+        contracts: contractsArray
+    });
+});
+
+// Active Addresses API Route (List of addresses that interacted with blockchain)
+app.get('/api/addresses', (req, res) => {
+    const addressesArray = Array.from(addressTransactions.keys());
+    res.json({
+        totalAddresses: addressesArray.length,
+        addresses: addressesArray
+    });
+});
+
+// Address Transactions API Route (For a specific address)
+app.get('/api/addresses/:address/transactions', (req, res) => {
+    const address = req.params.address;
+    const transactionsForAddress = addressTransactions.get(address) || [];
+    res.json({
+        address,
+        transactions: transactionsForAddress
+    });
+});
+
+// Block and Transaction Summary API Route
+app.get('/api/summary', (req, res) => {
+    res.json({
+        totalBlocks: blocks.size,
+        totalTransactions: transactions.size,
+        totalContracts: contracts.size,
+        totalTokens: tokens.size,
+        totalMiningData: miningData.length,
+        totalMinerHashrates: minerHashrates.size,
+        totalShares: minerShares.length
+    });
+});
+
+// Block Pagination with Extra Info (Optional Summary)
+app.get('/api/blocks-info', (req, res) => {
+    const { page = 1, limit = 10 } = req.query;
+    const blocksArray = Array.from(blocks.values());
+    const paginatedBlocks = blocksArray.slice((page - 1) * limit, page * limit);
+
+    const blockSummary = paginatedBlocks.map(block => ({
+        number: block.number,
+        timestamp: new Date(block.timestamp * 1000).toISOString(),
+        miner: block.miner,
+        gasUsed: block.gasUsed,
+        gasLimit: block.gasLimit
+    }));
+
+    res.json({
+        totalBlocks: blocksArray.length,
+        page,
+        totalPages: Math.ceil(blocksArray.length / limit),
+        blocks: blockSummary
+    });
+});
+
+// Transaction Details with Receipt
+app.get('/api/transaction-details/:txnHash', async (req, res) => {
+    const txnHash = req.params.txnHash;
+    const txn = transactions.get(txnHash);
+    if (!txn) {
+        return res.status(404).json({ error: 'Transaction not found' });
+    }
+
+    const receipt = await web3.eth.getTransactionReceipt(txnHash);
+    if (!receipt) {
+        return res.status(404).json({ error: 'Transaction receipt not found' });
+    }
+
+    const transactionDetails = {
+        hash: txn.hash,
+        from: txn.from,
+        to: txn.to,
+        value: web3.utils.fromWei(txn.value, 'ether'),
+        gasUsed: receipt.gasUsed,
+        gasPrice: txn.gasPrice,
+        status: receipt.status ? 'Success' : 'Failed',
+        logs: receipt.logs,
+        contractAddress: receipt.contractAddress,
+        timestamp: new Date().toISOString()
+    };
+
+    res.json(transactionDetails);
+});
+
+// Start the Server
+app.listen(port, () => {
+    console.log(`Blockchain explorer backend running on port ${port}`);
+});
