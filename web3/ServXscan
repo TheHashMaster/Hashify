@@ -342,10 +342,17 @@ function logMiningData(block) {
     };
     miningData.push(data);
     console.log('Mining Data:', data);
-    
-    logMinerShares(block);
-    logMinerHashrate(block);
 }
+
+app.get('/api/blocks', (req, res) => {
+    const blocksArray = Array.from(blocks.values());
+    res.json({ totalBlocks: blocksArray.length, blocks: blocksArray });
+});
+
+app.listen(port, () => {
+    console.log(`Blockchain explorer backend running on port ${port}`);
+});
+
 
 setInterval(fetchLatestBlock, 5000);
 
