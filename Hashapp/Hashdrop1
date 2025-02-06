@@ -1,0 +1,155 @@
+<style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        .container { width: 50%; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px; }
+        input, button { margin: 10px; padding: 10px; }
+    </style>
+    <div class="container">
+    Prelaunch!<h1> Hashdrop #1</h1>
+Sign up and get a HashDrop Instantly.
+<br><br>Rpc Data
+<br>Network ID: *****
+<br>Network RPC URL:*****
+<br>Ticker:HASH
+  <br>     Hash Chain brought to you by Hashify
+        <h3>Sign Up</h3>
+        <input type="text" id="username" placeholder="Enter username">
+        <input type="text" id="ethAddress" placeholder="Enter Ethereum Address">
+        <button onclick="signup()">Sign Up</button>
+        <p id="signupMessage" style="color: green;"></p>
+
+        <!-- Affiliate Link Section -->
+        <h3>Referral link</h3>
+        <input type="text" id="affiliateLink" readonly>
+        <button onclick="copyLink()">Copy Link</button>
+        <p id="message" style="color: green;"></p>
+    </div>
+  Hash Chain brought to you by Hashify
+    <script>
+        let userId = null;
+        // Get the referral ID from URL params (if available)
+        const urlParams = new URLSearchParams(window.location.search);
+        const referralId = urlParams.get('referralId');
+
+        // Simple Ethereum address validation function
+        function isValidEthereumAddress(address) {
+            return /^0x[a-fA-F0-9]{40}$/.test(address);
+        }
+
+        // Sign-up function
+        async function signup() {
+    const username = document.getElementById('username').value;
+    const ethAddress = document.getElementById('ethAddress').value;
+
+    if (!username || !ethAddress) {
+        alert('Please fill in all fields!');
+        return;
+    }
+
+    if (!isValidEthereumAddress(ethAddress)) {
+        alert('Invalid Ethereum address!');
+        return;
+    }
+
+    try {
+        const response = await fetch('http://145.223.103.175:5000/signup', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ username, ethAddress }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            userId = data.userId;
+            document.getElementById('signupMessage').innerText = `Signed up successfully! User ID: ${userId}`;
+            generateAffiliateLink(userId);
+        } else {
+            alert(data.error);  // Display error if the Ethereum address is already used
+        }
+    } catch (error) {
+        console.error('Error signing up:', error);
+        alert('Error signing up!');
+    }
+}
+
+        async function generateAffiliateLink() {
+            try {
+                const response = await fetch(`http://145.223.103.175:5000/affiliate/${userId}`);
+                const data = await response.json();
+                if (response.ok) {
+                    document.getElementById("affiliateLink").value = data.affiliateLink;
+                } else {
+                    console.error(data.error);
+                }
+            } catch (error) {
+                console.error('Error fetching affiliate link:', error);
+            }
+        }
+
+        // Copy affiliate link to clipboard
+        function copyLink() {
+            const copyText = document.getElementById("affiliateLink");
+            copyText.select();
+            document.execCommand("copy");
+            document.getElementById("message").innerText = "Affiliate link copied!";
+        }
+
+app.post('/signup', async (req, res) => {
+    const { username, ethAddress } = req.body;
+
+  
+    if (!username || !ethAddress) {
+        return res.status(400).json({ error: 'Username and Ethereum address are required!' });
+    }
+
+
+    if (usedEthereumAddresses.has(ethAddress)) {
+        return res.status(400).json({ error: 'This Ethereum address has already been used to generate an affiliate link.' });
+    }
+
+ 
+    const userId = 'user_' + Date.now(); 
+
+ 
+    const newUser = { userId, username, ethAddress };
+
+
+    users[userId] = newUser;
+    usedEthereumAddresses.add(ethAddress); 
+    const affiliateLink = `http://localhost:5000/affiliate/${userId}`;
+
+
+    try {
+        await transferHashCoinsToRecipient(ethAddress, userId);
+        return res.json({
+            message: 'User signed up and Hash coins sent successfully!',
+            userId: userId,
+            affiliateLink: affiliateLink
+        });
+    } catch (error) {
+        return res.status(500).json({ error: 'Error processing transaction' });
+    }
+});
+
+
+app.get('/affiliate/:userId', (req, res) => {
+    const userId = req.params.userId;
+    const user = users[userId];
+
+    if (user) {
+      
+        const affiliateLink = `http://localhost:5000/affiliate/${userId}`;
+        return res.json({ affiliateLink });
+    } else {
+        return res.status(404).json({ error: 'User not found' });
+    }
+});
+
+
+app.listen(port, () => {
+    console.log(`Server running on http://localhost:${port}`);
+});
+    </script>
+
