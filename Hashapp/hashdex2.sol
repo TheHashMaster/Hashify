@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract HashifyDEX is ReentrancyGuard, Ownable {
+contract HashDEX is ReentrancyGuard, Ownable {
     struct Order {
         address maker;
         address token;
